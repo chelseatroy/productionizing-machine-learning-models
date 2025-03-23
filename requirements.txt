@@ -1,0 +1,9 @@
+metaflow
+datasets
+scikit-learn
+matplotlib
+seaborn
+boto3
+joblib
+ipykernel
+
