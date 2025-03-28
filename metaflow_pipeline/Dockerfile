@@ -22,16 +22,16 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy requirements
-COPY requirements.txt .
+COPY metaflow_pipeline/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # Copy Hugging Face cache into image
-COPY hf_cache /root/.cache/huggingface/datasets
+COPY ../hf_cache /root/.cache/huggingface/datasets
 
 # Copy source code
-COPY . .
+COPY metaflow_pipeline/ .
 
 # Default command
 CMD ["python", "sentiment_analysis_flow.py", "run", "--s3-bucket", "productionizing-ml-models-bucket"]

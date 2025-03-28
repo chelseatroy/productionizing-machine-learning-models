@@ -1,0 +1,6 @@
+streamlit
+boto3
+scikit-learn
+matplotlib
+seaborn
+joblib

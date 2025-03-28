@@ -1,0 +1,27 @@
+version: "3.9"
+
+services:
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    container_name: streamlit-dashboard
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    depends_on:
+      - metaflow
+    command: streamlit run dashboard.py --server.port=8501 --server.address=0.0.0.0
+
+  metaflow:
+      build:
+        context: .
+        dockerfile: metaflow_pipeline/Dockerfile
+      container_name: metaflow-pipeline
+      env_file:
+        - .env
+      stdin_open: true
+      tty: true
+      command: tail -f /dev/null

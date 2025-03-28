@@ -62,8 +62,23 @@ class SentimentAnalysisFlow(FlowSpec):
         plt.xlabel("Predicted")
         plt.ylabel("Actual")
         plt.savefig("confusion_matrix.png")
-        self.model_path = f"model_{uuid.uuid4().hex}.joblib"
+        self.model_path = "model.joblib"
         joblib.dump(self.model, self.model_path)
+
+        # Save vectorizer
+        joblib.dump(self.vectorizer, "vectorizer.joblib")
+
+        # Save metrics
+        from sklearn.metrics import accuracy_score, f1_score
+        import json
+
+        metrics = {
+            "accuracy": accuracy_score(self.y_val, y_pred),
+            "f1_score": f1_score(self.y_val, y_pred),
+        }
+        with open("metrics.json", "w") as f:
+            json.dump(metrics, f)
+
         self.next(self.push)
 
     @step
@@ -72,6 +87,10 @@ class SentimentAnalysisFlow(FlowSpec):
         s3 = boto3.client('s3')
         s3.upload_file(self.model_path, self.s3_bucket, self.model_path)
         self.model_url = f"https://{self.s3_bucket}.s3.amazonaws.com/{self.model_path}"
+
+        for fname in ["model.joblib", "vectorizer.joblib", "confusion_matrix.png", "metrics.json"]:
+            s3.upload_file(fname, self.s3_bucket, fname)
+
         self.next(self.end)
 
     @step

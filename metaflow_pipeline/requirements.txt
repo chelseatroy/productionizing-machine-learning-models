@@ -6,4 +6,5 @@ seaborn
 boto3
 joblib
 ipykernel
+streamlit
 
