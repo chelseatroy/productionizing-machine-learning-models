@@ -16,12 +16,14 @@ services:
     command: streamlit run dashboard.py --server.port=8501 --server.address=0.0.0.0
 
   metaflow:
-      build:
-        context: .
-        dockerfile: metaflow_pipeline/Dockerfile
-      container_name: metaflow-pipeline
-      env_file:
-        - .env
-      stdin_open: true
-      tty: true
-      command: tail -f /dev/null
+    build:
+      context: .
+      dockerfile: metaflow_pipeline/Dockerfile
+    container_name: metaflow-pipeline
+    env_file:
+      - .env
+    stdin_open: true
+    tty: true
+    command: tail -f /dev/null
+    volumes:
+      - ./metaflow_pipeline:/app     # Mount code into /app inside the container

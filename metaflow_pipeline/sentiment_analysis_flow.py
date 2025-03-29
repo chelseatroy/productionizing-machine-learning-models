@@ -3,24 +3,25 @@ from datasets import load_dataset
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, f1_score
 import matplotlib.pyplot as plt
 import seaborn as sns
 import joblib
 import boto3
 import os
 import uuid
-from datasets import load_dataset
+import json
+import datetime
 
 class SentimentAnalysisFlow(FlowSpec):
-
-    s3_bucket = Parameter("s3-bucket", help="S3 bucket to store the model")
+    s3_bucket = Parameter("s3_bucket", help="S3 bucket to store the model")
 
     @step
     def start(self):
         print("Fetching book reviews from IMDb...")
-        self.raw_data = load_dataset("imdb", split="train", cache_dir="/root/.cache/huggingface/datasets").shuffle(seed=42).select(range(2000))
-        self.test_data = load_dataset("imdb", split="test", cache_dir="/root/.cache/huggingface/datasets").shuffle(seed=42).select(range(500))
+        dataset = load_dataset("imdb")  # Using IMDb as a proxy for book reviews
+        self.raw_data = dataset['train'].shuffle(seed=42).select(range(2000))  # Limit for faster training
+        self.test_data = dataset['test'].shuffle(seed=42).select(range(500))
         self.next(self.prepare_data)
 
     @step
@@ -61,36 +62,40 @@ class SentimentAnalysisFlow(FlowSpec):
         plt.title("Confusion Matrix")
         plt.xlabel("Predicted")
         plt.ylabel("Actual")
-        plt.savefig("confusion_matrix.png")
+
+        # Generate version ID
+        self.version_id = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+
+        # File names
         self.model_path = "model.joblib"
+        self.vectorizer_path = "vectorizer.joblib"
+        self.metrics_path = "metrics.json"
+        self.confusion_path = "confusion_matrix.png"
+
+        # Save artifacts
         joblib.dump(self.model, self.model_path)
-
-        # Save vectorizer
-        joblib.dump(self.vectorizer, "vectorizer.joblib")
-
-        # Save metrics
-        from sklearn.metrics import accuracy_score, f1_score
-        import json
+        joblib.dump(self.vectorizer, self.vectorizer_path)
 
         metrics = {
             "accuracy": accuracy_score(self.y_val, y_pred),
-            "f1_score": f1_score(self.y_val, y_pred),
+            "f1_score": f1_score(self.y_val, y_pred)
         }
-        with open("metrics.json", "w") as f:
+        with open(self.metrics_path, "w") as f:
             json.dump(metrics, f)
 
+        plt.savefig(self.confusion_path)
         self.next(self.push)
 
     @step
     def push(self):
-        print("Uploading model to S3...")
+        print("Uploading model and artifacts to S3...")
         s3 = boto3.client('s3')
-        s3.upload_file(self.model_path, self.s3_bucket, self.model_path)
-        self.model_url = f"https://{self.s3_bucket}.s3.amazonaws.com/{self.model_path}"
+        version_folder = f"models/{self.version_id}"
 
-        for fname in ["model.joblib", "vectorizer.joblib", "confusion_matrix.png", "metrics.json"]:
-            s3.upload_file(fname, self.s3_bucket, fname)
+        for fname in [self.model_path, self.vectorizer_path, self.metrics_path, self.confusion_path]:
+            s3.upload_file(fname, self.s3_bucket, f"{version_folder}/{fname}")
 
+        self.model_url = f"https://{self.s3_bucket}.s3.amazonaws.com/{version_folder}/{self.model_path}"
         self.next(self.end)
 
     @step
@@ -100,4 +105,3 @@ class SentimentAnalysisFlow(FlowSpec):
 
 if __name__ == '__main__':
     SentimentAnalysisFlow()
-
