@@ -1,3 +1,7 @@
 ctroy_start_docker.sh
+env/
 .env
+.idea
+__pycache__/
+.metaflow/
 
