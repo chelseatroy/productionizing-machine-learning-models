@@ -6,8 +6,8 @@ import os
 import pickle
 
 app = FastAPI(title="Book Review Sentiment API")
+app.current_model_version = os.getenv("MODEL_VERSION", "latest")
 
-version = os.getenv("MODEL_VERSION", "latest")
 s3_bucket = os.getenv("S3_BUCKET")
 
 class ReviewInput(BaseModel):
@@ -16,7 +16,7 @@ class ReviewInput(BaseModel):
 # Load model on startup
 @app.on_event("startup")
 def load_model():
-    load_model_from_cloud(version)
+    load_model_from_cloud(app.current_model_version)
 
 def load_model_from_cloud(version):
     global model, vectorizer
@@ -65,7 +65,7 @@ def predict_sentiment(review: ReviewInput):
         return {
             "prediction": "positive" if prediction == 1 else "negative",
             "raw": int(prediction),
-            "version": version
+            "version": app.current_model_version
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -74,6 +74,7 @@ def predict_sentiment(review: ReviewInput):
 def reload_model(version: str):
     try:
         load_model_from_cloud(version)
+        app.current_model_version = version
         return {"message": f"Model reloaded: {version}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Reload failed: {str(e)}")

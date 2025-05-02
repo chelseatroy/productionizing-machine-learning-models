@@ -16,4 +16,4 @@ COPY inference/inference_server.py .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "inference_server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "inference_server:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app"]

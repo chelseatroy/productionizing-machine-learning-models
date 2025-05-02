@@ -16,6 +16,7 @@ import pickle
 
 class SentimentAnalysisFlow(FlowSpec):
     s3_bucket = Parameter("s3_bucket", help="S3 bucket to store the model")
+    experiment_name = Parameter("experiment_name", help="Short name to identify the experiment you're running")
 
     @step
     def start(self):
@@ -23,7 +24,7 @@ class SentimentAnalysisFlow(FlowSpec):
         dataset = load_dataset("imdb")  # Using IMDb as a proxy for book reviews
         self.raw_data = dataset['train'].shuffle(seed=42).select(range(2000))  # Limit for faster training
         self.test_data = dataset['test'].shuffle(seed=42).select(range(500))
-        self.version_id = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+        self.version_id = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M%S") + f"-{self.experiment_name}"
         self.next(self.prepare_data)
 
     @step
