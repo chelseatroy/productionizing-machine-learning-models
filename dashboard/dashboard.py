@@ -43,8 +43,9 @@ def load_model_set(version):
     idf_path = download_file_from_s3(version, "idf.pkl")
     metrics_path = download_file_from_s3(version, "metrics.json")
     matrix_path = download_file_from_s3(version, "confusion_matrix.png")
+    errors_path = download_file_from_s3(version, "error_examples.json")
 
-    if not all([model_path, vec_path, idf_path, metrics_path]):
+    if not all([model_path, vec_path, idf_path, metrics_path, errors_path]):
         st.error("One or more model files could not be downloaded from S3.")
         st.stop()
 
@@ -57,8 +58,10 @@ def load_model_set(version):
 
     with open(metrics_path) as f:
         metrics = json.load(f)
+    with open(errors_path) as f:
+        error_examples = json.load(f)
 
-    return model, vectorizer, metrics, matrix_path
+    return model, vectorizer, metrics, matrix_path, error_examples
 
 # --- UI: Select Versions ---
 available_versions = list_versions()
@@ -74,8 +77,8 @@ with col2:
     version_b = st.selectbox("Model B Version", available_versions, key="b", index=1 if len(available_versions) > 1 else 0)
 
 # --- Load both model versions ---
-model_a, vec_a, metrics_a, cm_a = load_model_set(version_a)
-model_b, vec_b, metrics_b, cm_b = load_model_set(version_b)
+model_a, vec_a, metrics_a, cm_a, err_a = load_model_set(version_a)
+model_b, vec_b, metrics_b, cm_b, err_b = load_model_set(version_b)
 
 # --- Metrics ---
 st.subheader("📊 Evaluation Metrics")
@@ -96,6 +99,23 @@ with conf_col1:
 with conf_col2:
     if cm_b:
         st.image(cm_b, caption=f"Confusion Matrix B - {version_b}")
+
+# --- Example Errors ---
+st.subheader("💥 Example Errors")
+err_col1, err_col2 = st.columns(2)
+with err_col1:
+    if err_a:
+        st.markdown(f"#### False Positive Examples:")
+        st.table(data=err_a['false_positives'][0:min(10, len(err_a['false_positives']))])
+        st.markdown(f"#### False Negative Examples:")
+        st.table(data=err_a['false_negatives'][0:min(10, len(err_a['false_negatives']))])
+
+with err_col2:
+    if err_b:
+        st.markdown(f"#### False Positive Examples:")
+        st.table(data=err_b['false_positives'][0:min(10, len(err_b['false_positives']))])
+        st.markdown(f"#### False Negative Examples:")
+        st.table(data=err_b['false_negatives'][0:min(10, len(err_b['false_negatives']))])
 
 # --- A/B Prediction ---
 st.subheader("🧪 A/B Prediction Test")

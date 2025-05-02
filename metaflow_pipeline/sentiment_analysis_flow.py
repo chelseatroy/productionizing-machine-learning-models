@@ -35,6 +35,8 @@ class SentimentAnalysisFlow(FlowSpec):
 
         X_train, X_val, y_train, y_val = train_test_split(texts, labels, test_size=0.2, random_state=42)
 
+        self.X_val_texts = X_val
+
         self.vectorizer = TfidfVectorizer(max_features=5000, stop_words='english')
         self.X_train = self.vectorizer.fit_transform(X_train)
         self.X_val = self.vectorizer.transform(X_val)
@@ -94,6 +96,20 @@ class SentimentAnalysisFlow(FlowSpec):
         plt.xlabel("Predicted")
         plt.ylabel("Actual")
 
+        errs = {
+            "false_positives": [],
+            "false_negatives": [],
+        }
+        for idx, example in enumerate(self.y_val):
+            if self.y_val[idx] == 0 and y_pred[idx] == 1:
+                errs["false_positives"].append(self.X_val_texts[idx])
+            if self.y_val[idx] == 1 and y_pred[idx] == 0:
+                errs["false_negatives"].append(self.X_val_texts[idx])
+
+        self.errors_path = "error_examples.json"
+        with open(self.errors_path, "w") as f:
+            json.dump(errs, f)
+
         self.metrics_path = "metrics.json"
         self.confusion_path = "confusion_matrix.png"
 
@@ -114,7 +130,7 @@ class SentimentAnalysisFlow(FlowSpec):
         s3 = boto3.client('s3')
         version_folder = f"models/{self.version_id}"
 
-        for fname in [self.metrics_path, self.confusion_path]:
+        for fname in [self.metrics_path, self.confusion_path, self.errors_path]:
             s3.upload_file(fname, self.s3_bucket, f"{version_folder}/{fname}")
 
         self.model_url = f"https://{self.s3_bucket}.s3.amazonaws.com/{version_folder}/{self.model_path}"
